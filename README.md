@@ -11,10 +11,11 @@ An embedded terminal panel for [Obsidian](https://obsidian.md), powered by [xter
 - Auto-detects your shell: PowerShell 7 / Windows PowerShell / cmd.exe on Windows, `$SHELL` on macOS/Linux
 - Four built-in color themes: Obsidian Dark, Obsidian Light, Monokai, Solarized Dark
 - Customizable ribbon and panel tab icon (any Lucide icon name)
-- Clickable URLs in terminal output (OSC 8 links open via Electron after confirmation)
+- Clickable URLs in terminal output; OSC 8 hyperlinks ask for confirmation before opening in the browser
 - Auto-resize on panel resize
 - Opens at vault root by default
-- Clipboard support: Ctrl+V / Cmd+V paste, Ctrl+C / Cmd+C copy (with selection), OSC 52 copy requests (including Claude Code's "c to copy"), and a right-click menu for Copy link address, Copy selection, and Paste. Copy link address uses the full OSC 8 URI. Ctrl+C without a selection still sends interrupt to the running program.
+- Clipboard support: Ctrl+V / Cmd+V pastes, Ctrl+C / Cmd+C copies selected text, and terminal programs can copy via OSC 52 (OSC 52 clipboard-read requests are ignored). Without a selection, Ctrl+C still interrupts the running program.
+- Right-click terminal output to copy a selection or link address, or to paste. OSC 8 hyperlinks retain their full address even when displayed across multiple lines.
 - Shift+Enter inserts a newline instead of submitting (muscle memory friendly for Claude Code users)
 - Custom background color override with color picker (match your vault theme)
 - Configurable: shell path, font size, font family, cursor blink, scrollback, panel location
@@ -46,7 +47,7 @@ An embedded terminal panel for [Obsidian](https://obsidian.md), powered by [xter
 | New tab | Command palette: **New terminal tab**, or click the **+** button in the tab bar |
 | Rename tab | Right-click the tab label |
 | Close tab | Click the **x** on the tab |
-| Copy a long login URL | On a Claude Code login prompt press **c** to copy via OSC 52; or right-click the hyperlink and choose **Copy link address**. |
+| Copy a link | Right-click it and choose **Copy link address**, or use the program's own copy shortcut when available |
 
 ## Settings
 

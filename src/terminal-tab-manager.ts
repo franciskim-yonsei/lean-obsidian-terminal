@@ -615,9 +615,9 @@ export class TerminalTabManager {
     terminal.loadAddon(webLinksAddon);
     terminal.open(containerEl);
 
-    // Claude Code's "c to copy" emits OSC 52. xterm 5.5 parses but does
-    // not handle it by default; without a handler it never reaches the OS
-    // clipboard. Reject read requests and limit writes to 1 MiB encoded.
+    // Terminal programs use OSC 52 to request clipboard writes. xterm 5.5
+    // does not handle it by default. Reject read requests and limit writes
+    // to 1 MiB encoded.
     terminal.parser.registerOscHandler(52, (data) => {
       const separator = data.indexOf(";");
       if (separator < 0) return true;
