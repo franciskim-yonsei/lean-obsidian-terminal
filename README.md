@@ -11,10 +11,10 @@ An embedded terminal panel for [Obsidian](https://obsidian.md), powered by [xter
 - Auto-detects your shell: PowerShell 7 / Windows PowerShell / cmd.exe on Windows, `$SHELL` on macOS/Linux
 - Four built-in color themes: Obsidian Dark, Obsidian Light, Monokai, Solarized Dark
 - Customizable ribbon and panel tab icon (any Lucide icon name)
-- Clickable URLs in terminal output
+- Clickable URLs in terminal output (OSC 8 links open via Electron after confirmation)
 - Auto-resize on panel resize
 - Opens at vault root by default
-- Clipboard support: Ctrl+V / Cmd+V paste, Ctrl+C / Cmd+C copy (with selection)
+- Clipboard support: Ctrl+V / Cmd+V paste, Ctrl+C / Cmd+C copy (with selection), OSC 52 copy requests (including Claude Code's "c to copy"), and a right-click menu for Copy link address, Copy selection, and Paste. Copy link address uses the full OSC 8 URI. Ctrl+C without a selection still sends interrupt to the running program.
 - Shift+Enter inserts a newline instead of submitting (muscle memory friendly for Claude Code users)
 - Custom background color override with color picker (match your vault theme)
 - Configurable: shell path, font size, font family, cursor blink, scrollback, panel location
@@ -46,6 +46,7 @@ An embedded terminal panel for [Obsidian](https://obsidian.md), powered by [xter
 | New tab | Command palette: **New terminal tab**, or click the **+** button in the tab bar |
 | Rename tab | Right-click the tab label |
 | Close tab | Click the **x** on the tab |
+| Copy a long login URL | On a Claude Code login prompt press **c** to copy via OSC 52; or right-click the hyperlink and choose **Copy link address**. |
 
 ## Settings
 

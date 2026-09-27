@@ -1,4 +1,4 @@
-import { Platform } from "obsidian";
+import { Menu, Notice, Platform } from "obsidian";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -570,7 +570,28 @@ export class TerminalTabManager {
     if (this.settings.backgroundColor) {
       theme.background = this.settings.backgroundColor;
     }
+    let hoveredLink: string | null = null;
+    const openExternalLink = (uri: string): void => {
+      try {
+        if (!["http:", "https:"].includes(new URL(uri).protocol)) return;
+        const { shell } = (window as any).require("electron");
+        void shell.openExternal(uri).catch(() => new Notice("Terminal: could not open link"));
+      } catch {
+        new Notice("Terminal: could not open link");
+      }
+    };
     const terminal = new Terminal({
+      // OSC 8 links already contain the full URI, even when their label wraps.
+      // xterm's default handler confirms, then calls window.open(), which
+      // Obsidian/Electron blocks. Keep the confirmation but use Electron's shell.
+      linkHandler: {
+        activate: (_event, uri) => {
+          if (!window.confirm(`Do you want to navigate to ${uri}?\n\nWARNING: This link could potentially be dangerous`)) return;
+          openExternalLink(uri);
+        },
+        hover: (_event, uri) => { hoveredLink = uri; },
+        leave: () => { hoveredLink = null; },
+      },
       fontSize: this.settings.fontSize,
       fontFamily: this.settings.fontFamily,
       cursorBlink: this.settings.cursorBlink,
@@ -580,11 +601,54 @@ export class TerminalTabManager {
     });
 
     const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon();
+    // Plain-text URLs also need Electron's shell: the default window.open()
+    // handler is blocked by Obsidian.
+    const webLinksAddon = new WebLinksAddon(
+      (_event, uri) => openExternalLink(uri),
+      {
+        hover: (_event, uri) => { hoveredLink = uri; },
+        leave: () => { hoveredLink = null; },
+      }
+    );
 
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(webLinksAddon);
     terminal.open(containerEl);
+
+    // Claude Code's "c to copy" emits OSC 52. xterm 5.5 parses but does
+    // not handle it by default; without a handler it never reaches the OS
+    // clipboard. Reject read requests and limit writes to 1 MiB encoded.
+    terminal.parser.registerOscHandler(52, (data) => {
+      const separator = data.indexOf(";");
+      if (separator < 0) return true;
+      const payload = data.slice(separator + 1);
+      if (payload.length > 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(payload)) return true;
+      const text = Buffer.from(payload, "base64").toString("utf8");
+      void this.copyToClipboard(text);
+      return true;
+    });
+
+    // xterm renders to canvas, so the browser's native text context menu
+    // cannot copy terminal output. Offer actions even without a selection.
+    containerEl.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const selection = terminal.hasSelection() ? terminal.getSelection() : "";
+      // Capture now: moving the pointer into the menu fires link "leave".
+      const link = hoveredLink;
+      const menu = new Menu();
+      menu.addItem((item) => item.setTitle("Copy link address")
+        .setDisabled(!link)
+        .onClick(() => { if (link) void this.copyToClipboard(link); }));
+      menu.addItem((item) => item.setTitle("Copy selection").setDisabled(!selection)
+        .onClick(() => { void this.copyToClipboard(selection); }));
+      menu.addSeparator();
+      menu.addItem((item) => item.setTitle("Paste")
+        .onClick(() => { void navigator.clipboard.readText()
+          .then((text) => { if (text) terminal.paste(text); })
+          .catch(() => new Notice("Terminal: clipboard unavailable")); }));
+      menu.showAtMouseEvent(e);
+    });
 
     // Intercept clipboard shortcuts — Obsidian captures them before xterm.js.
     terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
@@ -615,13 +679,8 @@ export class TerminalTabManager {
       }
 
       if (mod && e.key.toLowerCase() === "c" && terminal.hasSelection()) {
-        const text = terminal
-          .getSelection()
-          .split("\n")
-          .map((line) => line.trimEnd())
-          .join("\n");
-        navigator.clipboard.writeText(text).catch(() => { /* clipboard unavailable */ });
-        terminal.clearSelection();
+        const text = terminal.getSelection();
+        void this.copyToClipboard(text);
         return false;
       }
 
@@ -639,6 +698,20 @@ export class TerminalTabManager {
     this.renderBottomBar();
 
     return session;
+  }
+
+  private async copyToClipboard(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      try {
+        // Electron's clipboard works even when navigator.clipboard is denied
+        // by the renderer (e.g. an unfocused terminal pane).
+        (window as any).require("electron").clipboard.writeText(text);
+      } catch {
+        new Notice("Terminal: could not copy to clipboard");
+      }
+    }
   }
 
   private wireProcess(session: TerminalSession): void {
